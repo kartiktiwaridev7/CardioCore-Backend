@@ -4,6 +4,7 @@ import numpy as np
 import mysql.connector
 from fastapi import FastAPI
 from pydantic import BaseModel
+from urllib.parse import urlparse
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -70,8 +71,16 @@ def predict_heart_disease(data: PredictionData):
 @app.post("/api/book-appointment")
 def book_appointment(data: AppointmentData):
     try:
-        # Connect to MySQL Database securely using the single, unified Service URI string
-        conn = mysql.connector.connect(os.getenv("DATABASE_URL"))
+        # Automatically parse the single DATABASE_URL into individual connection attributes
+        url = urlparse(os.getenv("DATABASE_URL"))
+        
+        conn = mysql.connector.connect(
+            host=url.hostname,
+            port=url.port,
+            user=url.username,
+            password=url.password,
+            database=url.path.lstrip('/')
+        )
         cursor = conn.cursor()
 
         # Insert Data securely using parameterized query strings
