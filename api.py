@@ -101,3 +101,40 @@ def book_appointment(data: AppointmentData):
         if 'conn' in locals() and conn.is_connected():
             cursor.close()
             conn.close()
+
+@app.post("/api/init-db")
+def initialize_database():
+    try:
+        url = urlparse(os.getenv("DATABASE_URL"))
+        conn = mysql.connector.connect(
+            host=url.hostname,
+            port=url.port,
+            user=url.username,
+            password=url.password,
+            database=url.path.lstrip('/')
+        )
+        cursor = conn.cursor()
+        
+        # Build the table directly from the Render Cloud
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS appointment (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            phone VARCHAR(50) NOT NULL,
+            appointment_date VARCHAR(50) NOT NULL,
+            doctor_id VARCHAR(255) NOT NULL
+        )
+        """
+        cursor.execute(create_table_query)
+        conn.commit()
+        
+        return {"status": "success", "message": "Database table created successfully from the cloud!"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+    finally:
+        if 'conn' in locals() and conn.is_connected():
+            cursor.close()
+            conn.close()
