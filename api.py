@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import joblib
 import numpy as np
 import mysql.connector
+import os
 
 # ==========================================
 # 1. INITIALIZE THE HOSPITAL SERVER
@@ -75,11 +76,11 @@ class AppointmentData(BaseModel):
 def book_appointment(data: AppointmentData):
     try:
         # Connect to MySQL Database
-        conn = mysql.connector.connect(
-            host="127.0.0.1",
-            user="root",
-            password="kartik9276", # <--- UPDATE THIS LINE!
-            database="cardiocore_db"
+      host=os.getenv("DB_HOST"),
+    port=int(os.getenv("DB_PORT")),
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    database=os.getenv("DB_NAME")
         )
         cursor = conn.cursor()
 
