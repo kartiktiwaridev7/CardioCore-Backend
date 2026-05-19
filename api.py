@@ -70,14 +70,8 @@ def predict_heart_disease(data: PredictionData):
 @app.post("/api/book-appointment")
 def book_appointment(data: AppointmentData):
     try:
-        # Connect to MySQL Database securely using production environment variables
-        conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT")),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
-        )
+        # Connect to MySQL Database securely using the single, unified Service URI string
+        conn = mysql.connector.connect(os.getenv("DATABASE_URL"))
         cursor = conn.cursor()
 
         # Insert Data securely using parameterized query strings
