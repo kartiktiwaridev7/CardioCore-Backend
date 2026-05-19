@@ -74,28 +74,26 @@ class AppointmentData(BaseModel):
 
 @app.post("/api/book-appointment")
 def book_appointment(data: AppointmentData):
-    try:
+   try:
         # Connect to MySQL Database
-      host=os.getenv("DB_HOST"),
-    port=int(os.getenv("DB_PORT")),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-   database=os.getenv("DB_NAME")
-)
-cursor = conn.cursor()
+        conn = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=int(os.getenv("DB_PORT")),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME")
+        )
+        cursor = conn.cursor()
 
         # Insert Data securely
         sql = """INSERT INTO appointment (patient_name, email, phone, appointment_date, doctor_id)
                  VALUES (%s, %s, %s, %s, %s)"""
         val = (data.fullname, data.email, data.phone, data.appointment_date, data.doctor)
-        
+
         cursor.execute(sql, val)
         conn.commit()
 
         return {"status": "success", "message": "Appointment booked successfully in the database!"}
-
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
     finally:
         # Always close the connection to prevent memory leaks
