@@ -1,81 +1,76 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+import os
 import joblib
 import numpy as np
 import mysql.connector
-import os
+from fastapi import FastAPI
+from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
-# ==========================================
-# 1. INITIALIZE THE HOSPITAL SERVER
-# ==========================================
-app = FastAPI(title="CardioCore Master API")
+app = FastAPI()
 
-# Security: Allow your HTML frontend to talk to this Python server
+# Enable CORS for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Load your exported Brain (ML Model)
-model = joblib.load('heart_disease_model.pkl')
-scaler = joblib.load('scaler.pkl')
+# Load Machine Learning Assets safely using relative paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "heart_disease_model.pkl")
+SCALER_PATH = os.path.join(BASE_DIR, "scaler.pkl")
 
-# ==========================================
-# 2. QUEUE 1: THE MACHINE LEARNING PREDICTOR
-# ==========================================
-class PatientData(BaseModel):
-    age: float
+model = joblib.load(MODEL_PATH)
+scaler = joblib.load(SCALER_PATH)
+
+class PredictionData(BaseModel):
+    age: int
     sex: int
     cp: int
-    trestbps: float
-    chol: float
+    trestbps: int
+    chol: int
     fbs: int
     restecg: int
-    thalach: float
+    thalach: int
     exang: int
     oldpeak: float
     slope: int
     ca: int
     thal: int
 
-@app.post("/api/predict")
-def predict_risk(data: PatientData):
-    # Format data for the ML model
-    input_data = np.array([[
-        data.age, data.sex, data.cp, data.trestbps, data.chol, 
-        data.fbs, data.restecg, data.thalach, data.exang, 
-        data.oldpeak, data.slope, data.ca, data.thal
-    ]])
-    
-    # Scale and Predict
-    scaled_data = scaler.transform(input_data)
-    prediction = model.predict(scaled_data)[0]
-    
-    # Calculate exact probability for the UI Gauge
-    probabilities = model.predict_proba(scaled_data)[0]
-    risk_percentage = int(probabilities[1] * 100) 
-    label = "High Risk" if prediction == 1 else "Low Risk"
-    
-    return {"risk_percentage": risk_percentage, "label": label}
-
-# ==========================================
-# 3. QUEUE 2: THE MYSQL DATABASE CONNECTOR
-# ==========================================
 class AppointmentData(BaseModel):
     fullname: str
     email: str
     phone: str
-    appointment_date: str 
+    appointment_date: str
     doctor: str
+
+@app.post("/api/predict")
+def predict_heart_disease(data: PredictionData):
+    try:
+        input_data = np.array([[ 
+            data.age, data.sex, data.cp, data.trestbps, data.chol, data.fbs,
+            data.restecg, data.thalach, data.exang, data.oldpeak, data.slope, data.ca, data.thal
+        ]])
+        
+        scaled_data = scaler.transform(input_data)
+        prediction = int(model.predict(scaled_data)[0])
+        
+        # Calculate a simulated probability risk percentage
+        probabilities = model.predict_proba(scaled_data)[0]
+        risk_percentage = round(float(probabilities[1]) * 100, 2)
+        
+        label = "High Risk" if prediction == 1 else "Low Risk"
+        return {"risk_percentage": risk_percentage, "label": label}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/book-appointment")
 def book_appointment(data: AppointmentData):
-   try:
-        # Connect to MySQL Database
+    try:
+        # Connect to MySQL Database securely using production environment variables
         conn = mysql.connector.connect(
             host=os.getenv("DB_HOST"),
             port=int(os.getenv("DB_PORT")),
@@ -85,7 +80,7 @@ def book_appointment(data: AppointmentData):
         )
         cursor = conn.cursor()
 
-        # Insert Data securely
+        # Insert Data securely using parameterized query strings
         sql = """INSERT INTO appointment (patient_name, email, phone, appointment_date, doctor_id)
                  VALUES (%s, %s, %s, %s, %s)"""
         val = (data.fullname, data.email, data.phone, data.appointment_date, data.doctor)
@@ -95,8 +90,11 @@ def book_appointment(data: AppointmentData):
 
         return {"status": "success", "message": "Appointment booked successfully in the database!"}
 
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
     finally:
-        # Always close the connection to prevent memory leaks
+        # Always close the database connection elements to prevent resource leaks
         if 'conn' in locals() and conn.is_connected():
             cursor.close()
             conn.close()
