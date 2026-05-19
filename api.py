@@ -80,9 +80,9 @@ def book_appointment(data: AppointmentData):
     port=int(os.getenv("DB_PORT")),
     user=os.getenv("DB_USER"),
     password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME")
-        )
-        cursor = conn.cursor()
+   database=os.getenv("DB_NAME")
+)
+cursor = conn.cursor()
 
         # Insert Data securely
         sql = """INSERT INTO appointment (patient_name, email, phone, appointment_date, doctor_id)
